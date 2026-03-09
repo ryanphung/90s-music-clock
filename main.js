@@ -13,7 +13,6 @@ const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 
 let tray = null;
 let audioWindow = null;
-let settingsWindow = null;
 let currentVolume = 50; // Default volume (0–100)
 let hourlyTimer = null;
 
@@ -52,10 +51,6 @@ function saveConfig() {
 // Sound resolution
 // ---------------------------------------------------------------------------
 
-function clampVolume(volume) {
-  return Math.max(0, Math.min(100, Math.round(Number(volume))));
-}
-
 // Map a 0–23 hour to a clock-face hour (1–12) and return its sound file path.
 function soundPathForHour(hour) {
   const h = Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : new Date().getHours();
@@ -81,37 +76,25 @@ function createAudioWindow() {
   });
 }
 
-function openSettingsWindow() {
-  if (settingsWindow) {
-    settingsWindow.focus();
-    return;
-  }
-  settingsWindow = new BrowserWindow({
-    width: 300,
-    height: 80,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    title: 'Music Clock – Settings',
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
-    },
-  });
-  settingsWindow.setMenu(null);
-  settingsWindow.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
-  settingsWindow.on('closed', () => {
-    settingsWindow = null;
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Tray menu
 // ---------------------------------------------------------------------------
 
 function buildTrayMenu() {
+  const volumeItems = [0, 25, 50, 75, 100].map((level) => ({
+    label: level === 0 ? 'Off (0%)' : `${level}%`,
+    type: 'radio',
+    checked: currentVolume === level,
+    click: () => {
+      currentVolume = level;
+      if (audioWindow) {
+        audioWindow.webContents.send('set-volume', currentVolume / 100);
+      }
+      saveConfig();
+      tray.setContextMenu(buildTrayMenu());
+    },
+  }));
+
   const hourItems = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => ({
     label: `${h} o'clock`,
     click: () => {
@@ -124,8 +107,8 @@ function buildTrayMenu() {
     { label: 'Music Clock', enabled: false },
     { type: 'separator' },
     {
-      label: 'Volume...',
-      click: () => openSettingsWindow(),
+      label: 'Volume',
+      submenu: volumeItems,
     },
     { type: 'separator' },
     {
@@ -205,15 +188,4 @@ ipcMain.on('renderer-ready', () => {
   if (audioWindow) {
     audioWindow.webContents.send('set-volume', currentVolume / 100);
   }
-});
-
-// Settings window IPC
-ipcMain.handle('get-volume', () => currentVolume);
-
-ipcMain.on('set-volume-from-settings', (_event, volume) => {
-  currentVolume = clampVolume(volume);
-  if (audioWindow) {
-    audioWindow.webContents.send('set-volume', currentVolume / 100);
-  }
-  saveConfig();
 });
