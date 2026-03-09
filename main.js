@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage, dialog } = require('electron');
+const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -11,19 +11,13 @@ const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
 const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 
-const DEFAULT_SOUND = path.join(__dirname, 'sounds', 'hourly.wav');
-
 let tray = null;
 let audioWindow = null;
 let currentVolume = 50; // Default volume (0–100)
 let hourlyTimer = null;
 
-// Per-hour sound map: { [hour: number]: string (absolute file path) }
-// Hours not present fall back to DEFAULT_SOUND.
-let hourSoundMap = {};
-
 // ---------------------------------------------------------------------------
-// Config persistence
+// Config persistence (volume only)
 // ---------------------------------------------------------------------------
 
 function getConfigPath() {
@@ -34,15 +28,6 @@ function loadConfig() {
   try {
     const raw = fs.readFileSync(getConfigPath(), 'utf8');
     const data = JSON.parse(raw);
-    if (data && typeof data.hourSounds === 'object') {
-      // Coerce keys to numbers
-      for (const [k, v] of Object.entries(data.hourSounds)) {
-        const hour = parseInt(k, 10);
-        if (hour >= 0 && hour <= 23 && typeof v === 'string') {
-          hourSoundMap[hour] = v;
-        }
-      }
-    }
     if (typeof data.volume === 'number') {
       currentVolume = data.volume;
     }
@@ -55,23 +40,22 @@ function loadConfig() {
 }
 
 function saveConfig() {
-  const data = { volume: currentVolume, hourSounds: hourSoundMap };
   try {
-    fs.writeFileSync(getConfigPath(), JSON.stringify(data, null, 2), 'utf8');
+    fs.writeFileSync(getConfigPath(), JSON.stringify({ volume: currentVolume }, null, 2), 'utf8');
   } catch (err) {
     console.error('Failed to save config:', err);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Sound resolution
 // ---------------------------------------------------------------------------
 
-function hourLabel(h) {
-  if (h === 0) return '12:00 AM (Midnight)';
-  if (h === 12) return '12:00 PM (Noon)';
-  if (h < 12) return `${h}:00 AM`;
-  return `${h - 12}:00 PM`;
+// Map a 0–23 hour to a clock-face hour (1–12) and return its sound file path.
+function soundPathForHour(hour) {
+  const h = Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : new Date().getHours();
+  const clockHour = h % 12 || 12;
+  return path.join(__dirname, 'sounds', `${clockHour}.wav`);
 }
 
 function createAudioWindow() {
@@ -96,42 +80,6 @@ function createAudioWindow() {
 // Tray menu
 // ---------------------------------------------------------------------------
 
-function buildSoundsSubmenu() {
-  return Array.from({ length: 24 }, (_, h) => {
-    const assigned = hourSoundMap[h];
-    const soundLabel = assigned ? path.basename(assigned) : 'Default';
-    return {
-      label: `${hourLabel(h)}  —  ${soundLabel}`,
-      submenu: [
-        {
-          label: 'Choose sound file…',
-          click: async () => {
-            const { canceled, filePaths } = await dialog.showOpenDialog({
-              title: `Choose sound for ${hourLabel(h)}`,
-              filters: [{ name: 'Audio files', extensions: ['wav', 'mp3', 'ogg', 'm4a', 'flac'] }],
-              properties: ['openFile'],
-            });
-            if (!canceled && filePaths.length > 0) {
-              hourSoundMap[h] = filePaths[0];
-              saveConfig();
-              tray.setContextMenu(buildTrayMenu());
-            }
-          },
-        },
-        {
-          label: 'Reset to default',
-          enabled: !!assigned,
-          click: () => {
-            delete hourSoundMap[h];
-            saveConfig();
-            tray.setContextMenu(buildTrayMenu());
-          },
-        },
-      ],
-    };
-  });
-}
-
 function buildTrayMenu() {
   const volumeItems = [0, 25, 50, 75, 100].map((level) => ({
     label: level === 0 ? 'Off (0%)' : `${level}%`,
@@ -153,10 +101,6 @@ function buildTrayMenu() {
     {
       label: 'Volume',
       submenu: volumeItems,
-    },
-    {
-      label: 'Sounds by hour',
-      submenu: buildSoundsSubmenu(),
     },
     { type: 'separator' },
     {
@@ -180,11 +124,10 @@ function buildTrayMenu() {
 // ---------------------------------------------------------------------------
 
 function playHourlyChime() {
-  if (!audioWindow) return;       // window not yet ready
+  if (!audioWindow) return;        // window not yet ready
   if (currentVolume === 0) return; // user has muted
   const hour = new Date().getHours();
-  const soundPath = hourSoundMap[hour] || DEFAULT_SOUND;
-  audioWindow.webContents.send('play-chime', currentVolume / 100, soundPath);
+  audioWindow.webContents.send('play-chime', currentVolume / 100, soundPathForHour(hour));
 }
 
 function scheduleHourlyChime() {
