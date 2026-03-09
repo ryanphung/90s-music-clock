@@ -55,7 +55,7 @@ function saveConfig() {
 function soundPathForHour(hour) {
   const h = Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : new Date().getHours();
   const clockHour = h % 12 || 12;
-  return path.join(__dirname, 'sounds', `${clockHour}.wav`);
+  return path.join(__dirname, 'sounds', `${clockHour}.mp3`);
 }
 
 function createAudioWindow() {

@@ -23,10 +23,10 @@ The `sounds/` directory contains one WAV file per clock-hour:
 
 ```
 sounds/
-  1.wav    ← played at 1:00 AM and 1:00 PM
-  2.wav    ← played at 2:00 AM and 2:00 PM
+  1.mp3    ← played at 1:00 AM and 1:00 PM
+  2.mp3    ← played at 2:00 AM and 2:00 PM
   …
-  12.wav   ← played at 12:00 AM (midnight) and 12:00 PM (noon)
+  12.mp3   ← played at 12:00 AM (midnight) and 12:00 PM (noon)
 ```
 
 Replace any of these files with your own audio to customise the chime for
@@ -44,7 +44,7 @@ renderer/
 assets/
   tray-iconTemplate.png  – macOS menu-bar icon (template image)
 sounds/
-  1.wav – 12.wav – one chime file per clock-hour
+  1.mp3 – 12.mp3 – one chime file per clock-hour
 ```
 
 ## Config file
