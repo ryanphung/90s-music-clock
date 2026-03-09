@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Music Clock – Settings</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #f5f5f5;
+        padding: 20px;
+        user-select: none;
+        -webkit-app-region: drag;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        -webkit-app-region: no-drag;
+      }
+
+      label {
+        font-size: 13px;
+        color: #333;
+        width: 52px;
+        flex-shrink: 0;
+      }
+
+      input[type='range'] {
+        flex: 1;
+        accent-color: #007aff;
+        cursor: pointer;
+      }
+
+      #volume-display {
+        font-size: 13px;
+        color: #555;
+        width: 36px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <label for="volume-slider">Volume</label>
+      <input type="range" id="volume-slider" min="0" max="100" step="1" value="50" />
+      <span id="volume-display">50%</span>
+    </div>
+    <script src="settings.js"></script>
+  </body>
+</html>
