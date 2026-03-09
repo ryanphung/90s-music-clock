@@ -1,0 +1,25 @@
+{
+  "name": "music-clock",
+  "version": "1.0.0",
+  "description": "A macOS menu-bar clock app that plays a chime every hour",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryanphung/music-clock.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ryanphung/music-clock/issues"
+  },
+  "homepage": "https://github.com/ryanphung/music-clock#readme",
+  "devDependencies": {
+    "electron": "^40.8.0"
+  }
+}
