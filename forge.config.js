@@ -7,6 +7,8 @@ module.exports = {
       // Unpack sound and asset files so they remain accessible via file:// URLs
       unpackDir: '{sounds,assets}',
     },
+    // Platform-specific icon: electron-packager appends .icns (macOS), .ico (Windows)
+    icon: './assets/icon',
   },
   rebuildConfig: {},
   makers: [
