@@ -1,7 +1,8 @@
 {
   "name": "90s-music-clock",
+  "productName": "90s Music Clock",
   "version": "1.0.0",
-  "description": "A macOS menu-bar clock app that plays a chime every hour",
+  "description": "A macOS menu-bar clock app built with Electron that plays a chime sound every hour. It simulates the chime sound of a music clock from the 90s, specially those that use the Quartz sound mechanism.",
   "main": "main.js",
   "scripts": {
     "start": "electron-forge start",
