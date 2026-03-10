@@ -16,7 +16,7 @@ let audioWindow = null;
 let currentVolume = 50; // Default volume (0–100)
 let nightStart = 21;    // Default night window start hour (9 pm), 0–23
 let nightEnd = 6;       // Default night window end hour (6 am), 0–23
-let nightVolume = 50;   // Default night volume (0–100)
+let nightVolume = 25;   // Default night volume (0–100)
 let hourlyTimer = null;
 
 // ---------------------------------------------------------------------------
