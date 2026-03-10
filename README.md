@@ -7,8 +7,9 @@ A macOS menu-bar clock app built with Electron that plays a chime sound every ho
 - Lives entirely in the macOS top menu bar (no Dock icon, no window)
 - Plays a different chime sound for each clock-hour (1–12)
 - Volume control via the tray menu (Off / 25% / 50% / 75% / 100%)
-- **Night Mode**: automatically lowers the chime to a quieter volume during a configurable quiet window (default: 9 pm – 6 am)
+- **Night Mode**: automatically lowers the chime to a quieter volume during a configurable quiet window (default: 9 pm – 6 am); the start hour, end hour, and night volume are each configurable from the Night Mode submenu
 - "Play chime now" submenu to test the current hour's chime or any specific hour (1–12)
+- **Open at Login**: optional setting to launch the app automatically on macOS login
 - All settings are persisted across restarts
 
 ## Setup
@@ -43,7 +44,7 @@ renderer/
   index.html     – Hidden BrowserWindow for audio playback
   renderer.js    – HTML5 Audio playback & volume handling
 assets/
-  tray-iconTemplate.png  – macOS menu-bar icon (template image)
+  tray-icon.png  – macOS menu-bar icon
 sounds/
   1.mp3 – 12.mp3 – one chime file per clock-hour
 ```
