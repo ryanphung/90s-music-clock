@@ -253,7 +253,7 @@ function scheduleHourlyChime() {
 app.whenReady().then(() => {
   loadConfig();
 
-  const iconPath = path.join(__dirname, 'assets', 'tray-iconTemplate.png');
+  const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
   const icon = nativeImage.createFromPath(iconPath);
 
   tray = new Tray(icon);
