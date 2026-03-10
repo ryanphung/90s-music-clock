@@ -209,6 +209,18 @@ function buildTrayMenu() {
     },
     { type: 'separator' },
     {
+      label: 'Open at Login',
+      type: 'checkbox',
+      checked: app.getLoginItemSettings().openAtLogin,
+      click: (menuItem) => {
+        app.setLoginItemSettings({
+          openAtLogin: menuItem.checked,
+          // openAsHidden keeps the app silent on launch (no Dock bounce, no window)
+          openAsHidden: menuItem.checked,
+        });
+      },
+    },
+    {
       label: 'Quit',
       click: () => {
         app.quit();
