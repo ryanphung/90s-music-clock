@@ -1,14 +1,15 @@
-# music-clock
+# 90s-music-clock
 
-A macOS menu-bar clock app built with Electron that plays a chime sound every hour.
+A macOS menu-bar clock app built with Electron that plays a chime sound every hour. It simulates the chime sound of a music clock from the 90s, specially those that use the Quartz sound mechanism.
 
 ## Features
 
 - Lives entirely in the macOS top menu bar (no Dock icon, no window)
 - Plays a different chime sound for each clock-hour (1–12)
 - Volume control via the tray menu (Off / 25% / 50% / 75% / 100%)
-- "Play chime now" option for testing
-- Volume setting is persisted across restarts
+- **Night Mode**: automatically lowers the chime to a quieter volume during a configurable quiet window (default: 9 pm – 6 am)
+- "Play chime now" submenu to test the current hour's chime or any specific hour (1–12)
+- All settings are persisted across restarts
 
 ## Setup
 
@@ -19,7 +20,7 @@ npm start
 
 ## Sound files
 
-The `sounds/` directory contains one WAV file per clock-hour:
+The `sounds/` directory contains one MP3 file per clock-hour:
 
 ```
 sounds/
@@ -49,9 +50,21 @@ sounds/
 
 ## Config file
 
-Volume is saved automatically to
+All settings are saved automatically to
 `~/Library/Application Support/music-clock/config.json` (macOS):
 
 ```json
-{ "volume": 50 }
+{
+  "volume": 50,
+  "nightStart": 21,
+  "nightEnd": 6,
+  "nightVolume": 25
+}
 ```
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `volume` | Day-time chime volume (0–100) | `50` |
+| `nightStart` | Hour (0–23) at which the quiet window begins | `21` (9 pm) |
+| `nightEnd` | Hour (0–23) at which the quiet window ends | `6` (6 am) |
+| `nightVolume` | Chime volume (0–100) during the quiet window | `25` |
