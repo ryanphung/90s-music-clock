@@ -4,6 +4,10 @@ const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage } = require('electr
 const path = require('path');
 const fs = require('fs');
 
+// Handle Squirrel events on Windows (installer/uninstaller lifecycle).
+// This must return early so the rest of the app does not run during install/uninstall.
+if (require('electron-squirrel-startup')) app.quit();
+
 // Prevent the app from showing in the Dock on macOS
 app.dock && app.dock.hide();
 
@@ -205,6 +209,18 @@ function buildTrayMenu() {
     },
     { type: 'separator' },
     {
+      label: 'Open at Login',
+      type: 'checkbox',
+      checked: app.getLoginItemSettings().openAtLogin,
+      click: (menuItem) => {
+        app.setLoginItemSettings({
+          openAtLogin: menuItem.checked,
+          // openAsHidden keeps the app silent on launch (no Dock bounce, no window)
+          openAsHidden: menuItem.checked,
+        });
+      },
+    },
+    {
       label: 'Quit',
       click: () => {
         app.quit();
@@ -249,7 +265,7 @@ function scheduleHourlyChime() {
 app.whenReady().then(() => {
   loadConfig();
 
-  const iconPath = path.join(__dirname, 'assets', 'tray-iconTemplate.png');
+  const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
   const icon = nativeImage.createFromPath(iconPath);
 
   tray = new Tray(icon);

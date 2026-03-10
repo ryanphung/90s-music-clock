@@ -51,7 +51,7 @@ sounds/
 ## Config file
 
 All settings are saved automatically to
-`~/Library/Application Support/music-clock/config.json` (macOS):
+`~/Library/Application Support/90s-music-clock/config.json` (macOS):
 
 ```json
 {
