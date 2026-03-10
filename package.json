@@ -1,5 +1,5 @@
 {
-  "name": "music-clock",
+  "name": "90s-music-clock",
   "version": "1.0.0",
   "description": "A macOS menu-bar clock app that plays a chime every hour",
   "main": "main.js",
@@ -11,16 +11,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ryanphung/music-clock.git"
+    "url": "git+https://github.com/ryanphung/90s-music-clock.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/ryanphung/music-clock/issues"
+    "url": "https://github.com/ryanphung/90s-music-clock/issues"
   },
-  "homepage": "https://github.com/ryanphung/music-clock#readme",
+  "homepage": "https://github.com/ryanphung/90s-music-clock#readme",
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",
     "@electron-forge/maker-deb": "^7.11.1",
