@@ -14,6 +14,9 @@ const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 let tray = null;
 let audioWindow = null;
 let currentVolume = 50; // Default volume (0–100)
+let nightStart = 21;    // Default night window start hour (9 pm), 0–23
+let nightEnd = 6;       // Default night window end hour (6 am), 0–23
+let nightVolume = 50;   // Default night volume (0–100)
 let hourlyTimer = null;
 
 // ---------------------------------------------------------------------------
@@ -31,6 +34,15 @@ function loadConfig() {
     if (typeof data.volume === 'number') {
       currentVolume = data.volume;
     }
+    if (typeof data.nightStart === 'number') {
+      nightStart = data.nightStart;
+    }
+    if (typeof data.nightEnd === 'number') {
+      nightEnd = data.nightEnd;
+    }
+    if (typeof data.nightVolume === 'number') {
+      nightVolume = data.nightVolume;
+    }
   } catch (err) {
     // ENOENT is expected on first run; log any other error to aid troubleshooting
     if (err.code !== 'ENOENT') {
@@ -41,7 +53,11 @@ function loadConfig() {
 
 function saveConfig() {
   try {
-    fs.writeFileSync(getConfigPath(), JSON.stringify({ volume: currentVolume }, null, 2), 'utf8');
+    fs.writeFileSync(
+      getConfigPath(),
+      JSON.stringify({ volume: currentVolume, nightStart, nightEnd, nightVolume }, null, 2),
+      'utf8'
+    );
   } catch (err) {
     console.error('Failed to save config:', err);
   }
@@ -56,6 +72,23 @@ function soundPathForHour(hour) {
   const h = Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : new Date().getHours();
   const clockHour = h % 12 || 12;
   return path.join(__dirname, 'sounds', `${clockHour}.mp3`);
+}
+
+// Return true if the given hour (0–23) falls within the night window.
+// The window can span midnight (e.g. 21–6).
+function isNightTime(hour) {
+  if (nightStart < nightEnd) {
+    // Simple (non-wrapping) range, e.g. nightStart=8, nightEnd=17 → 8 am to 5 pm
+    return hour >= nightStart && hour < nightEnd;
+  }
+  // Wraps midnight, e.g. nightStart=21, nightEnd=6 → 21,22,23,0,1,2,3,4,5
+  return hour >= nightStart || hour < nightEnd;
+}
+
+// Return the volume (0–100) to use right now, respecting the night window.
+function effectiveVolume() {
+  const hour = new Date().getHours();
+  return isNightTime(hour) ? nightVolume : currentVolume;
 }
 
 function createAudioWindow() {
@@ -95,6 +128,46 @@ function buildTrayMenu() {
     },
   }));
 
+  // Night window start hours: every hour 0–23, labelled in 12-hour format
+  const hourLabel = (h) => {
+    if (h === 0) return '12 am (midnight)';
+    if (h === 12) return '12 pm (noon)';
+    return h < 12 ? `${h} am` : `${h - 12} pm`;
+  };
+
+  const nightStartItems = Array.from({ length: 24 }, (_, h) => ({
+    label: hourLabel(h),
+    type: 'radio',
+    checked: nightStart === h,
+    click: () => {
+      nightStart = h;
+      saveConfig();
+      tray.setContextMenu(buildTrayMenu());
+    },
+  }));
+
+  const nightEndItems = Array.from({ length: 24 }, (_, h) => ({
+    label: hourLabel(h),
+    type: 'radio',
+    checked: nightEnd === h,
+    click: () => {
+      nightEnd = h;
+      saveConfig();
+      tray.setContextMenu(buildTrayMenu());
+    },
+  }));
+
+  const nightVolumeItems = [0, 25, 50, 75, 100].map((level) => ({
+    label: level === 0 ? 'Off (0%)' : `${level}%`,
+    type: 'radio',
+    checked: nightVolume === level,
+    click: () => {
+      nightVolume = level;
+      saveConfig();
+      tray.setContextMenu(buildTrayMenu());
+    },
+  }));
+
   const hourItems = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => ({
     label: `${h} o'clock`,
     click: () => {
@@ -109,6 +182,14 @@ function buildTrayMenu() {
     {
       label: 'Volume',
       submenu: volumeItems,
+    },
+    {
+      label: 'Night Mode',
+      submenu: [
+        { label: 'Start (quiet from)', submenu: nightStartItems },
+        { label: 'End (quiet until)', submenu: nightEndItems },
+        { label: 'Night Volume', submenu: nightVolumeItems },
+      ],
     },
     { type: 'separator' },
     {
@@ -138,9 +219,10 @@ function buildTrayMenu() {
 
 function playHourlyChime() {
   if (!audioWindow) return;        // window not yet ready
-  if (currentVolume === 0) return; // user has muted
+  const vol = effectiveVolume();
+  if (vol === 0) return;           // muted (day or night)
   const hour = new Date().getHours();
-  audioWindow.webContents.send('play-chime', currentVolume / 100, soundPathForHour(hour));
+  audioWindow.webContents.send('play-chime', vol / 100, soundPathForHour(hour));
 }
 
 function scheduleHourlyChime() {
