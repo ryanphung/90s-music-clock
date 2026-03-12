@@ -26,10 +26,10 @@ window.clockAPI.onPlayChime((volume, soundPath) => {
 // count is the number of chimes to play in sequence (1, 2, or 3).
 window.clockAPI.onPlayQuarterChime((volume, count) => {
   const chimeDuration = 1.8; // seconds per chime tone
-  const chimeGap = 0.4;      // seconds of silence between chimes
+  const chimeInterval = 0.9; // seconds between the start of each successive chime (< chimeDuration so chimes overlap)
 
   for (let i = 0; i < count; i++) {
-    const startTime = audioCtx.currentTime + i * (chimeDuration + chimeGap);
+    const startTime = audioCtx.currentTime + i * chimeInterval;
 
     // Fundamental tone
     const osc1 = audioCtx.createOscillator();
