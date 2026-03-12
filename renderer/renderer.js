@@ -26,7 +26,16 @@ window.clockAPI.onPlayChime((volume, soundPath) => {
 // count is the number of chimes to play in sequence (1, 2, or 3).
 window.clockAPI.onPlayQuarterChime((volume, count) => {
   const chimeDuration = 1.8; // seconds per chime tone
-  const chimeInterval = 0.9; // seconds between the start of each successive chime (< chimeDuration so chimes overlap)
+  const chimeInterval = 0.8; // seconds between the start of each successive chime (< chimeDuration so chimes overlap)
+  const notes = [
+    262, // C4
+    294, // D4
+    330, // E4
+    349, // F4
+    392, // G4
+    440, // A4
+    494, // B4
+  ];
 
   for (let i = 0; i < count; i++) {
     const startTime = audioCtx.currentTime + i * chimeInterval;
@@ -34,7 +43,7 @@ window.clockAPI.onPlayQuarterChime((volume, count) => {
     // Fundamental tone
     const osc1 = audioCtx.createOscillator();
     osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(830, startTime);
+    osc1.frequency.setValueAtTime(notes[i], startTime);
 
     // Overtone for a richer bell timbre
     const osc2 = audioCtx.createOscillator();
