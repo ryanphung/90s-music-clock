@@ -25,6 +25,7 @@ window.clockAPI.onPlayChime((volume, soundPath) => {
 // Play a synthetic bell chime using the Web Audio API.
 // count is the number of chimes to play in sequence (1, 2, or 3).
 window.clockAPI.onPlayQuarterChime((volume, count) => {
+  const quarterVolume = volume * 0.5; // quarter chimes are softer than the hourly chime
   const chimeDuration = 1.8; // seconds per chime tone
   const chimeInterval = 0.8; // seconds between the start of each successive chime (< chimeDuration so chimes overlap)
   const notes = [
@@ -39,23 +40,25 @@ window.clockAPI.onPlayQuarterChime((volume, count) => {
 
   for (let i = 0; i < count; i++) {
     const startTime = audioCtx.currentTime + i * chimeInterval;
+    const fundamental = notes[i];
+    const overtone = fundamental * 1.5; // perfect fifth above each note for a consistent bell timbre
 
     // Fundamental tone
     const osc1 = audioCtx.createOscillator();
     osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(notes[i], startTime);
+    osc1.frequency.setValueAtTime(fundamental, startTime);
 
     // Overtone for a richer bell timbre
     const osc2 = audioCtx.createOscillator();
     osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(1245, startTime);
+    osc2.frequency.setValueAtTime(overtone, startTime);
 
     const gainNode = audioCtx.createGain();
-    gainNode.gain.setValueAtTime(volume, startTime);
+    gainNode.gain.setValueAtTime(quarterVolume, startTime);
     gainNode.gain.linearRampToValueAtTime(0, startTime + chimeDuration);
 
     const gainOvertone = audioCtx.createGain();
-    gainOvertone.gain.setValueAtTime(volume * 0.3, startTime);
+    gainOvertone.gain.setValueAtTime(quarterVolume * 0.3, startTime);
     gainOvertone.gain.linearRampToValueAtTime(0, startTime + chimeDuration * 0.6);
 
     osc1.connect(gainNode);
