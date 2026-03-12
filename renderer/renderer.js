@@ -43,11 +43,11 @@ window.clockAPI.onPlayQuarterChime((volume, count) => {
 
     const gainNode = audioCtx.createGain();
     gainNode.gain.setValueAtTime(volume, startTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + chimeDuration);
+    gainNode.gain.linearRampToValueAtTime(0, startTime + chimeDuration);
 
     const gainOvertone = audioCtx.createGain();
     gainOvertone.gain.setValueAtTime(volume * 0.3, startTime);
-    gainOvertone.gain.exponentialRampToValueAtTime(0.001, startTime + chimeDuration * 0.6);
+    gainOvertone.gain.linearRampToValueAtTime(0, startTime + chimeDuration * 0.6);
 
     osc1.connect(gainNode);
     osc2.connect(gainOvertone);

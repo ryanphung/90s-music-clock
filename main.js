@@ -23,7 +23,8 @@ let nightEnd = 6;       // Default night window end hour (6 am), 0–23
 let nightVolume = 25;   // Default night volume (0–100)
 let quarterChimeEnabled = false; // Default: quarter chimes off
 let hourlyTimer = null;
-let quarterChimeTimer = null;
+let quarterChimeTimeout = null;
+let quarterChimeInterval = null;
 
 // ---------------------------------------------------------------------------
 // Config persistence (volume only)
@@ -221,6 +222,19 @@ function buildTrayMenu() {
         },
         { type: 'separator' },
         ...hourItems,
+        { type: 'separator' },
+        {
+          label: 'Quarter chime (× 1)',
+          click: () => playQuarterChimeCount(1),
+        },
+        {
+          label: 'Quarter chime (× 2)',
+          click: () => playQuarterChimeCount(2),
+        },
+        {
+          label: 'Quarter chime (× 3)',
+          click: () => playQuarterChimeCount(3),
+        },
       ],
     },
     { type: 'separator' },
@@ -277,10 +291,22 @@ function playQuarterChime() {
   }
 }
 
+// Play a specific number of quarter chimes immediately (used for manual test-play).
+function playQuarterChimeCount(count) {
+  if (!audioWindow) return;
+  const vol = effectiveVolume();
+  if (vol === 0) return;
+  audioWindow.webContents.send('play-quarter-chime', vol / 100, count);
+}
+
 function scheduleQuarterChimes() {
-  if (quarterChimeTimer) {
-    clearTimeout(quarterChimeTimer);
-    quarterChimeTimer = null;
+  if (quarterChimeTimeout) {
+    clearTimeout(quarterChimeTimeout);
+    quarterChimeTimeout = null;
+  }
+  if (quarterChimeInterval) {
+    clearInterval(quarterChimeInterval);
+    quarterChimeInterval = null;
   }
 
   const now = new Date();
@@ -291,9 +317,10 @@ function scheduleQuarterChimes() {
     now.getSeconds() * MS_PER_SECOND -
     now.getMilliseconds();
 
-  quarterChimeTimer = setTimeout(() => {
+  quarterChimeTimeout = setTimeout(() => {
+    quarterChimeTimeout = null;
     playQuarterChime();
-    quarterChimeTimer = setInterval(() => {
+    quarterChimeInterval = setInterval(() => {
       playQuarterChime();
     }, 15 * MS_PER_MINUTE);
   }, msUntilNextQuarter);
