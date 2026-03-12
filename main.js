@@ -21,7 +21,10 @@ let currentVolume = 50; // Default volume (0–100)
 let nightStart = 21;    // Default night window start hour (9 pm), 0–23
 let nightEnd = 6;       // Default night window end hour (6 am), 0–23
 let nightVolume = 25;   // Default night volume (0–100)
+let quarterChimeEnabled = false; // Default: quarter chimes off
 let hourlyTimer = null;
+let quarterChimeTimeout = null;
+let quarterChimeInterval = null;
 
 // ---------------------------------------------------------------------------
 // Config persistence (volume only)
@@ -47,6 +50,9 @@ function loadConfig() {
     if (typeof data.nightVolume === 'number') {
       nightVolume = data.nightVolume;
     }
+    if (typeof data.quarterChimeEnabled === 'boolean') {
+      quarterChimeEnabled = data.quarterChimeEnabled;
+    }
   } catch (err) {
     // ENOENT is expected on first run; log any other error to aid troubleshooting
     if (err.code !== 'ENOENT') {
@@ -59,7 +65,7 @@ function saveConfig() {
   try {
     fs.writeFileSync(
       getConfigPath(),
-      JSON.stringify({ volume: currentVolume, nightStart, nightEnd, nightVolume }, null, 2),
+      JSON.stringify({ volume: currentVolume, nightStart, nightEnd, nightVolume, quarterChimeEnabled }, null, 2),
       'utf8'
     );
   } catch (err) {
@@ -195,6 +201,17 @@ function buildTrayMenu() {
         { label: 'Night Volume', submenu: nightVolumeItems },
       ],
     },
+    {
+      label: 'Quarter Chimes',
+      type: 'checkbox',
+      checked: quarterChimeEnabled,
+      click: (menuItem) => {
+        quarterChimeEnabled = menuItem.checked;
+        saveConfig();
+        scheduleQuarterChimes();
+        tray.setContextMenu(buildTrayMenu());
+      },
+    },
     { type: 'separator' },
     {
       label: 'Play chime now',
@@ -205,6 +222,19 @@ function buildTrayMenu() {
         },
         { type: 'separator' },
         ...hourItems,
+        { type: 'separator' },
+        {
+          label: 'Quarter chime (× 1)',
+          click: () => playQuarterChimeCount(1),
+        },
+        {
+          label: 'Quarter chime (× 2)',
+          click: () => playQuarterChimeCount(2),
+        },
+        {
+          label: 'Quarter chime (× 3)',
+          click: () => playQuarterChimeCount(3),
+        },
       ],
     },
     { type: 'separator' },
@@ -241,6 +271,61 @@ function playHourlyChime() {
   audioWindow.webContents.send('play-chime', vol / 100, soundPathForHour(hour));
 }
 
+// ---------------------------------------------------------------------------
+// Quarter-hour chime playback
+// ---------------------------------------------------------------------------
+
+function playQuarterChime() {
+  if (!quarterChimeEnabled || !audioWindow) return;
+  const vol = effectiveVolume();
+  if (vol === 0) return;
+
+  const minute = new Date().getMinutes();
+  let count = 0;
+  if (minute === 15) count = 1;
+  else if (minute === 30) count = 2;
+  else if (minute === 45) count = 3;
+
+  if (count > 0) {
+    audioWindow.webContents.send('play-quarter-chime', vol / 100, count);
+  }
+}
+
+// Play a specific number of quarter chimes immediately (used for manual test-play).
+function playQuarterChimeCount(count) {
+  if (!audioWindow) return;
+  const vol = effectiveVolume();
+  if (vol === 0) return;
+  audioWindow.webContents.send('play-quarter-chime', vol / 100, count);
+}
+
+function scheduleQuarterChimes() {
+  if (quarterChimeTimeout) {
+    clearTimeout(quarterChimeTimeout);
+    quarterChimeTimeout = null;
+  }
+  if (quarterChimeInterval) {
+    clearInterval(quarterChimeInterval);
+    quarterChimeInterval = null;
+  }
+
+  const now = new Date();
+  const minutesIntoCurrentQuarter = now.getMinutes() % 15;
+  const minutesToNextQuarter = 15 - minutesIntoCurrentQuarter;
+  const msUntilNextQuarter =
+    minutesToNextQuarter * MS_PER_MINUTE -
+    now.getSeconds() * MS_PER_SECOND -
+    now.getMilliseconds();
+
+  quarterChimeTimeout = setTimeout(() => {
+    quarterChimeTimeout = null;
+    playQuarterChime();
+    quarterChimeInterval = setInterval(() => {
+      playQuarterChime();
+    }, 15 * MS_PER_MINUTE);
+  }, msUntilNextQuarter);
+}
+
 function scheduleHourlyChime() {
   if (hourlyTimer) {
     clearTimeout(hourlyTimer);
@@ -274,6 +359,7 @@ app.whenReady().then(() => {
 
   createAudioWindow();
   scheduleHourlyChime();
+  scheduleQuarterChimes();
 });
 
 app.on('window-all-closed', () => {
