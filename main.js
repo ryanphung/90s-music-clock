@@ -220,7 +220,7 @@ function buildTrayMenu() {
       submenu: [
         {
           label: 'Current hour',
-          click: () => playHourlyChime(),
+          click: () => playHourlyChime(false),
         },
         { type: 'separator' },
         ...hourItems,
@@ -265,7 +265,7 @@ function buildTrayMenu() {
 // Chime playback
 // ---------------------------------------------------------------------------
 
-function playHourlyChime() {
+function playHourlyChime(applyLatenessGuard = true) {
   if (!audioWindow) return;        // window not yet ready
   const vol = effectiveVolume();
   if (vol === 0) return;           // muted (day or night)
@@ -273,7 +273,8 @@ function playHourlyChime() {
   const now = new Date();
   // Skip if we're too far past the top of the hour — this means the callback
   // was delayed (e.g. system woke from sleep long after the timer was due).
-  if (now.getMinutes() >= CHIME_LATE_SKIP_MINUTES) return;
+  // This guard is bypassed when the chime is triggered manually (applyLatenessGuard=false).
+  if (applyLatenessGuard && now.getMinutes() >= CHIME_LATE_SKIP_MINUTES) return;
 
   const hour = now.getHours();
   audioWindow.webContents.send('play-chime', vol / 100, soundPathForHour(hour));
