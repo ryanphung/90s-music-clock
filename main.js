@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage } = require('electron');
+const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -302,17 +302,16 @@ function playQuarterChime() {
   const nearestQuarterIndex = Math.round(msIntoHour / quarterMs) % 4;
   const nearestQuarterMs = nearestQuarterIndex * quarterMs;
 
-  // Skip if the callback fired too far past the intended boundary
-  // (e.g. the system woke from sleep long after the timer was due).
-  // setTimeout only fires late, so this is a one-sided check.
-  if (msIntoHour - nearestQuarterMs >= CHIME_LATE_SKIP_MINUTES * MS_PER_MINUTE) return;
+  // Skip if we haven't yet reached the intended boundary, or if we're too far
+  // past it (e.g. the system woke from sleep long after the timer was due).
+  const lateMs = msIntoHour - nearestQuarterMs;
+  if (lateMs < 0 || lateMs >= CHIME_LATE_SKIP_MINUTES * MS_PER_MINUTE) return;
 
   // nearestQuarterIndex directly encodes the count:
   // 0 → :00 (top of hour, handled by hourly chime), 1 → :15, 2 → :30, 3 → :45
   const count = nearestQuarterIndex;
-  if (count > 0) {
-    audioWindow.webContents.send('play-quarter-chime', vol / 100, count);
-  }
+  if (count === 0) return; // top of hour is handled by the hourly chime
+  audioWindow.webContents.send('play-quarter-chime', vol / 100, count);
 }
 
 // Play a specific number of quarter chimes immediately (used for manual test-play).
@@ -377,6 +376,15 @@ app.whenReady().then(() => {
   createAudioWindow();
   scheduleHourlyChime();
   scheduleQuarterChimes();
+
+  // When the system wakes from sleep, stale timers may be queued or still
+  // pending. Reschedule immediately so the next chimes fire at the correct
+  // wall-clock times, and so stale pending timers are cancelled before they
+  // can trigger a spurious chime.
+  powerMonitor.on('resume', () => {
+    scheduleHourlyChime();
+    scheduleQuarterChimes();
+  });
 });
 
 app.on('window-all-closed', () => {
