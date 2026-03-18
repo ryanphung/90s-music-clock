@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage } = require('electron');
+const { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -13,7 +13,10 @@ app.dock && app.dock.hide();
 
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
-const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+
+// Callbacks that fire this many minutes or more after their intended boundary
+// are skipped (e.g. the system woke from sleep long after the timer was due).
+const CHIME_LATE_SKIP_MINUTES = 5;
 
 let tray = null;
 let audioWindow = null;
@@ -24,7 +27,6 @@ let nightVolume = 25;   // Default night volume (0–100)
 let quarterChimeEnabled = false; // Default: quarter chimes off
 let hourlyTimer = null;
 let quarterChimeTimeout = null;
-let quarterChimeInterval = null;
 
 // ---------------------------------------------------------------------------
 // Config persistence (volume only)
@@ -267,7 +269,13 @@ function playHourlyChime() {
   if (!audioWindow) return;        // window not yet ready
   const vol = effectiveVolume();
   if (vol === 0) return;           // muted (day or night)
-  const hour = new Date().getHours();
+
+  const now = new Date();
+  // Skip if we're too far past the top of the hour — this means the callback
+  // was delayed (e.g. system woke from sleep long after the timer was due).
+  if (now.getMinutes() >= CHIME_LATE_SKIP_MINUTES) return;
+
+  const hour = now.getHours();
   audioWindow.webContents.send('play-chime', vol / 100, soundPathForHour(hour));
 }
 
@@ -280,15 +288,29 @@ function playQuarterChime() {
   const vol = effectiveVolume();
   if (vol === 0) return;
 
-  const minute = new Date().getMinutes();
-  let count = 0;
-  if (minute === 15) count = 1;
-  else if (minute === 30) count = 2;
-  else if (minute === 45) count = 3;
+  const now = new Date();
+  const msIntoHour =
+    now.getMinutes() * MS_PER_MINUTE +
+    now.getSeconds() * MS_PER_SECOND +
+    now.getMilliseconds();
 
-  if (count > 0) {
-    audioWindow.webContents.send('play-quarter-chime', vol / 100, count);
-  }
+  // Determine the index of the nearest quarter-hour boundary (0–3).
+  // Math.round can return 4 near :59:xx (mapping to the next hour's :00);
+  // % 4 folds that back to 0 so the guard and count logic stay consistent.
+  const quarterMs = 15 * MS_PER_MINUTE;
+  const nearestQuarterIndex = Math.round(msIntoHour / quarterMs) % 4;
+  const nearestQuarterMs = nearestQuarterIndex * quarterMs;
+
+  // Skip if we haven't yet reached the intended boundary, or if we're too far
+  // past it (e.g. the system woke from sleep long after the timer was due).
+  const lateMs = msIntoHour - nearestQuarterMs;
+  if (lateMs < 0 || lateMs >= CHIME_LATE_SKIP_MINUTES * MS_PER_MINUTE) return;
+
+  // nearestQuarterIndex directly encodes the count:
+  // 0 → :00 (top of hour, handled by hourly chime), 1 → :15, 2 → :30, 3 → :45
+  const count = nearestQuarterIndex;
+  if (count === 0) return; // top of hour is handled by the hourly chime
+  audioWindow.webContents.send('play-quarter-chime', vol / 100, count);
 }
 
 // Play a specific number of quarter chimes immediately (used for manual test-play).
@@ -304,10 +326,6 @@ function scheduleQuarterChimes() {
     clearTimeout(quarterChimeTimeout);
     quarterChimeTimeout = null;
   }
-  if (quarterChimeInterval) {
-    clearInterval(quarterChimeInterval);
-    quarterChimeInterval = null;
-  }
 
   const now = new Date();
   const minutesIntoCurrentQuarter = now.getMinutes() % 15;
@@ -320,9 +338,8 @@ function scheduleQuarterChimes() {
   quarterChimeTimeout = setTimeout(() => {
     quarterChimeTimeout = null;
     playQuarterChime();
-    quarterChimeInterval = setInterval(() => {
-      playQuarterChime();
-    }, 15 * MS_PER_MINUTE);
+    // Reschedule based on wall-clock time to prevent drift
+    scheduleQuarterChimes();
   }, msUntilNextQuarter);
 }
 
@@ -340,10 +357,8 @@ function scheduleHourlyChime() {
 
   hourlyTimer = setTimeout(() => {
     playHourlyChime();
-    // After the first chime, repeat every hour
-    hourlyTimer = setInterval(() => {
-      playHourlyChime();
-    }, MS_PER_HOUR);
+    // Reschedule based on wall-clock time to prevent drift
+    scheduleHourlyChime();
   }, msUntilNextHour);
 }
 
@@ -360,6 +375,15 @@ app.whenReady().then(() => {
   createAudioWindow();
   scheduleHourlyChime();
   scheduleQuarterChimes();
+
+  // When the system wakes from sleep, stale timers may be queued or still
+  // pending. Reschedule immediately so the next chimes fire at the correct
+  // wall-clock times, and so stale pending timers are cancelled before they
+  // can trigger a spurious chime.
+  powerMonitor.on('resume', () => {
+    scheduleHourlyChime();
+    scheduleQuarterChimes();
+  });
 });
 
 app.on('window-all-closed', () => {
