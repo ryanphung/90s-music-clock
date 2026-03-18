@@ -15,6 +15,10 @@ const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
 const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 
+// Callbacks that fire this many minutes or more after their intended boundary
+// are skipped (e.g. the system woke from sleep long after the timer was due).
+const CHIME_LATE_SKIP_MINUTES = 5;
+
 let tray = null;
 let audioWindow = null;
 let currentVolume = 50; // Default volume (0–100)
@@ -266,7 +270,13 @@ function playHourlyChime() {
   if (!audioWindow) return;        // window not yet ready
   const vol = effectiveVolume();
   if (vol === 0) return;           // muted (day or night)
-  const hour = new Date().getHours();
+
+  const now = new Date();
+  // Skip if we're too far past the top of the hour — this means the callback
+  // was delayed (e.g. system woke from sleep long after the timer was due).
+  if (now.getMinutes() >= CHIME_LATE_SKIP_MINUTES) return;
+
+  const hour = now.getHours();
   audioWindow.webContents.send('play-chime', vol / 100, soundPathForHour(hour));
 }
 
@@ -279,12 +289,27 @@ function playQuarterChime() {
   const vol = effectiveVolume();
   if (vol === 0) return;
 
-  const minute = new Date().getMinutes();
-  let count = 0;
-  if (minute === 15) count = 1;
-  else if (minute === 30) count = 2;
-  else if (minute === 45) count = 3;
+  const now = new Date();
+  const msIntoHour =
+    now.getMinutes() * MS_PER_MINUTE +
+    now.getSeconds() * MS_PER_SECOND +
+    now.getMilliseconds();
 
+  // Determine the index of the nearest quarter-hour boundary (0–3).
+  // Math.round can return 4 near :59:xx (mapping to the next hour's :00);
+  // % 4 folds that back to 0 so the guard and count logic stay consistent.
+  const quarterMs = 15 * MS_PER_MINUTE;
+  const nearestQuarterIndex = Math.round(msIntoHour / quarterMs) % 4;
+  const nearestQuarterMs = nearestQuarterIndex * quarterMs;
+
+  // Skip if the callback fired too far past the intended boundary
+  // (e.g. the system woke from sleep long after the timer was due).
+  // setTimeout only fires late, so this is a one-sided check.
+  if (msIntoHour - nearestQuarterMs >= CHIME_LATE_SKIP_MINUTES * MS_PER_MINUTE) return;
+
+  // nearestQuarterIndex directly encodes the count:
+  // 0 → :00 (top of hour, handled by hourly chime), 1 → :15, 2 → :30, 3 → :45
+  const count = nearestQuarterIndex;
   if (count > 0) {
     audioWindow.webContents.send('play-quarter-chime', vol / 100, count);
   }
