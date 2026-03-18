@@ -13,7 +13,6 @@ app.dock && app.dock.hide();
 
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
-const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 
 // Callbacks that fire this many minutes or more after their intended boundary
 // are skipped (e.g. the system woke from sleep long after the timer was due).
