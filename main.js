@@ -24,7 +24,6 @@ let nightVolume = 25;   // Default night volume (0–100)
 let quarterChimeEnabled = false; // Default: quarter chimes off
 let hourlyTimer = null;
 let quarterChimeTimeout = null;
-let quarterChimeInterval = null;
 
 // ---------------------------------------------------------------------------
 // Config persistence (volume only)
@@ -304,10 +303,6 @@ function scheduleQuarterChimes() {
     clearTimeout(quarterChimeTimeout);
     quarterChimeTimeout = null;
   }
-  if (quarterChimeInterval) {
-    clearInterval(quarterChimeInterval);
-    quarterChimeInterval = null;
-  }
 
   const now = new Date();
   const minutesIntoCurrentQuarter = now.getMinutes() % 15;
@@ -320,9 +315,8 @@ function scheduleQuarterChimes() {
   quarterChimeTimeout = setTimeout(() => {
     quarterChimeTimeout = null;
     playQuarterChime();
-    quarterChimeInterval = setInterval(() => {
-      playQuarterChime();
-    }, 15 * MS_PER_MINUTE);
+    // Reschedule based on wall-clock time to prevent drift
+    scheduleQuarterChimes();
   }, msUntilNextQuarter);
 }
 
@@ -340,10 +334,8 @@ function scheduleHourlyChime() {
 
   hourlyTimer = setTimeout(() => {
     playHourlyChime();
-    // After the first chime, repeat every hour
-    hourlyTimer = setInterval(() => {
-      playHourlyChime();
-    }, MS_PER_HOUR);
+    // Reschedule based on wall-clock time to prevent drift
+    scheduleHourlyChime();
   }, msUntilNextHour);
 }
 
